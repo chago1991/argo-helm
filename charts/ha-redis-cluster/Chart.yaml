@@ -1,0 +1,25 @@
+apiVersion: v2
+appVersion: v8.2.3
+kubeVersion: ">=1.25.0-0"
+description: A Helm chart for deploying a Redis HA cluster, suitable for use with Argo CD or any other workload that requires a highly-available Redis.
+name: ha-redis-cluster
+version: 0.1.0
+home: https://github.com/argoproj/argo-helm
+icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
+sources:
+  - https://github.com/argoproj/argo-helm/tree/main/charts/ha-redis-cluster
+  - https://github.com/DandyDeveloper/charts/tree/master/charts/redis-ha
+keywords:
+  - redis
+  - redis-ha
+  - ha
+  - cluster
+  - argoproj
+  - argocd
+maintainers:
+  - name: argoproj
+    url: https://argoproj.github.io/
+dependencies:
+  - name: redis-ha
+    version: 4.38.0
+    repository: https://dandydeveloper.github.io/charts/

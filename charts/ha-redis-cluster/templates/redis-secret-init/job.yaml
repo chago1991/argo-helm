@@ -1,0 +1,84 @@
+{{- if .Values.redisSecretInit.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ha-redis-cluster.redisSecretInit.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    {{- range $key, $value := .Values.redisSecretInit.jobAnnotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  labels:
+    {{- include "ha-redis-cluster.labels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    metadata:
+      labels:
+        {{- include "ha-redis-cluster.labels" . | nindent 8 }}
+        {{- with .Values.redisSecretInit.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.redisSecretInit.podAnnotations }}
+      annotations:
+        {{- range $key, $value := . }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+      {{- end }}
+    spec:
+      {{- with .Values.redisSecretInit.runtimeClassName }}
+      runtimeClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.redisSecretInit.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - command:
+          - argocd
+          - admin
+          - redis-initial-password
+        {{- with .Values.redisSecretInit.extraArgs }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ .Values.redisSecretInit.image.repository }}:{{ include "ha-redis-cluster.redisSecretInit.imageTag" . }}
+        imagePullPolicy: {{ .Values.redisSecretInit.image.imagePullPolicy }}
+        name: secret-init
+        resources:
+          {{- toYaml .Values.redisSecretInit.resources | nindent 10 }}
+        {{- with .Values.redisSecretInit.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.redisSecretInit.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redisSecretInit.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      restartPolicy: OnFailure
+      {{- with .Values.redisSecretInit.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redisSecretInit.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redisSecretInit.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.redisSecretInit.hostNetwork }}
+      hostNetwork: {{ .Values.redisSecretInit.hostNetwork }}
+      {{- end }}
+      {{- with .Values.redisSecretInit.dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      dnsPolicy: {{ .Values.redisSecretInit.dnsPolicy }}
+      serviceAccountName: {{ include "ha-redis-cluster.redisSecretInit.serviceAccountName" . }}
+{{- end }}

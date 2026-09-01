@@ -1,0 +1,19 @@
+{{ $haproxyName := printf "%s-redis-ha-haproxy" .Release.Name -}}
+Redis HA cluster has been deployed.
+
+HAProxy service (proxies to the current Redis master):
+  Host: {{ $haproxyName }}.{{ .Release.Namespace }}.svc.cluster.local
+  Port: 6379
+
+{{- if (index .Values "redis-ha" "auth") }}
+
+The Redis password is stored in secret:
+  kubectl get secret {{ index .Values "redis-ha" "existingSecret" }} -n {{ .Release.Namespace }} -o jsonpath="{.data.redis-password}" | base64 -d
+{{- end }}
+
+To connect Argo CD to this Redis HA cluster, install or upgrade the argo-cd chart with:
+
+  helm upgrade argo-cd argo-helm/argo-cd \
+    --set redis-ha.enabled=false \
+    --set externalRedis.host={{ $haproxyName }}.{{ .Release.Namespace }}.svc.cluster.local \
+    --set externalRedis.existingSecret={{ index .Values "redis-ha" "existingSecret" }}

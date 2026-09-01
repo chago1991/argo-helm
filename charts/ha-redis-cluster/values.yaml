@@ -1,0 +1,191 @@
+# -- Ref: https://github.com/DandyDeveloper/charts/blob/master/charts/redis-ha/values.yaml
+redis-ha:
+  ## Redis image
+  image:
+    # -- Redis repository
+    repository: ecr-public.aws.com/docker/library/redis
+    # -- Redis tag
+    tag: 8.2.3-alpine
+  ## Prometheus redis-exporter sidecar
+  exporter:
+    # -- Enable Prometheus redis-exporter sidecar
+    enabled: false
+    # -- Repository to use for the redis-exporter
+    image: ghcr.io/oliver006/redis_exporter
+    # -- Tag to use for the redis-exporter
+    tag: v1.75.0
+  persistentVolume:
+    # -- Configures persistence on Redis nodes
+    enabled: false
+  ## Redis specific configuration options
+  redis:
+    # -- Redis convention for naming the cluster group: must match `^[\w-\.]+$` and can be templated
+    masterGroupName: argocd
+    # -- Any valid redis config options in this section will be applied to each server (see `redis-ha` chart)
+    # @default -- See [values.yaml]
+    config:
+      # -- Will save the DB if both the given number of seconds and the given number of write operations against the DB occurred. `""` is disabled
+      # @default -- `'""'`
+      save: '""'
+  ## Redis sentinel specific configuration options
+  sentinel:
+    # -- Sentinel container lifecycle hooks. The default `postStart` hook resets the sentinel state after a rolling update to prevent high CPU usage
+    # @default -- See [values.yaml]
+    lifecycle:
+      postStart:
+        exec:
+          ## Note: the reset command hardcodes the master group name `argocd`. If you override `redis-ha.redis.masterGroupName`, you must override this hook to match.
+          command:
+            - '/bin/sh'
+            - '-c'
+            - 'sleep 30; redis-cli -p 26379 sentinel reset argocd'
+  ## Enables a HA Proxy for better LoadBalancing / Sentinel Master support. Automatically proxies to Redis master.
+  haproxy:
+    # -- Enabled HAProxy LoadBalancing/Proxy
+    enabled: true
+    # -- Custom labels for the haproxy pod. This is relevant for Argo CD CLI.
+    labels:
+      app.kubernetes.io/name: argocd-redis-ha-haproxy
+    image:
+      # -- HAProxy Image Repository
+      repository: ecr-public.aws.com/docker/library/haproxy
+    metrics:
+      # -- HAProxy enable prometheus metric scraping
+      enabled: true
+    # -- Whether the haproxy pods should be forced to run on separate nodes.
+    hardAntiAffinity: true
+    # -- Additional affinities to add to the haproxy pods.
+    additionalAffinities: {}
+    # -- Assign custom [affinity] rules to the haproxy pods.
+    affinity: |
+
+    # -- [Tolerations] for use with node taints for haproxy pods.
+    tolerations: []
+    # -- HAProxy container-level security context
+    # @default -- See [values.yaml]
+    containerSecurityContext:
+      readOnlyRootFilesystem: true
+
+  # -- Configures redis-ha with AUTH
+  auth: true
+  # -- Existing Secret to use for redis-ha authentication.
+  # By default the redis-secret-init Job is generating this Secret.
+  existingSecret: argocd-redis
+
+  # -- Whether the Redis server pods should be forced to run on separate nodes.
+  hardAntiAffinity: true
+
+  # -- Additional affinities to add to the Redis server pods.
+  additionalAffinities: {}
+
+  # -- Assign custom [affinity] rules to the Redis pods.
+  affinity: |
+
+  # -- [Tolerations] for use with node taints for Redis pods.
+  tolerations: []
+
+  # -- Assign custom [TopologySpreadConstraints] rules to the Redis pods.
+  ## https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/
+  topologySpreadConstraints:
+    # -- Enable Redis HA topology spread constraints
+    enabled: false
+    # -- Max skew of pods tolerated
+    # @default -- `""` (defaults to `1`)
+    maxSkew: ""
+    # -- Topology key for spread
+    # @default -- `""` (defaults to `topology.kubernetes.io/zone`)
+    topologyKey: ""
+    # -- Enforcement policy, hard or soft
+    # @default -- `""` (defaults to `ScheduleAnyway`)
+    whenUnsatisfiable: ""
+  # -- Redis HA statefulset container-level security context
+  # @default -- See [values.yaml]
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+
+## Redis secret initialization job
+redisSecretInit:
+  # -- Enable Redis secret initialization. If disabled, the secret must be provisioned by alternative methods
+  enabled: true
+  # -- Redis secret-init name
+  name: redis-secret-init
+
+  image:
+    # -- Repository to use for the Redis secret-init Job
+    repository: quay.io/argoproj/argocd
+    # -- Tag to use for the Redis secret-init Job (Argo CD version, e.g. v2.12.0). Required when redisSecretInit.enabled=true.
+    tag: ""
+    # -- Image pull policy for the Redis secret-init Job
+    imagePullPolicy: IfNotPresent
+
+  # -- Additional command line arguments for the Redis secret-init Job
+  extraArgs: []
+
+  # -- Secrets with credentials to pull images from a private registry
+  imagePullSecrets: []
+
+  # -- Annotations to be added to the Redis secret-init Job
+  jobAnnotations: {}
+
+  # -- Annotations to be added to the Redis secret-init Pod
+  podAnnotations: {}
+
+  # -- Labels to be added to the Redis secret-init Pod
+  podLabels: {}
+
+  # -- Resource limits and requests for Redis secret-init Job
+  resources: {}
+  #  limits:
+  #    cpu: 200m
+  #    memory: 128Mi
+  #  requests:
+  #    cpu: 100m
+  #    memory: 64Mi
+
+  # -- Redis secret-init Job container-level security context
+  # @default -- See [values.yaml]
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- Redis secret-init Job pod-level security context
+  securityContext: {}
+
+  serviceAccount:
+    # -- Create a service account for the redis-secret-init Job
+    create: true
+    # -- Service account name for the redis-secret-init Job
+    name: ""
+    # -- Annotations applied to created service account
+    annotations: {}
+    # -- Automount API credentials for the Service Account
+    automountServiceAccountToken: true
+
+  # -- Priority class for Redis secret-init Job
+  priorityClassName: ""
+
+  # -- Host Network for redis-secret-init pods
+  hostNetwork: false
+
+  # -- [DNS configuration]
+  dnsConfig: {}
+  # -- Alternative DNS policy for Redis secret-init Job
+  dnsPolicy: "ClusterFirst"
+
+  # -- Assign custom [affinity] rules to the Redis secret-init Job
+  affinity: {}
+
+  # -- Node selector to be added to the Redis secret-init Job
+  nodeSelector: {}
+
+  # -- Tolerations to be added to the Redis secret-init Job
+  tolerations: []
+
+  # -- Runtime class name for the Redis secret-init Job
+  runtimeClassName: ""
