@@ -1,0 +1,20 @@
+{{- if .Values.redisSecretInit.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+  labels:
+    {{- include "ha-redis-cluster.labels" . | nindent 4 }}
+  name: {{ include "ha-redis-cluster.redisSecretInit.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "ha-redis-cluster.redisSecretInit.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ha-redis-cluster.redisSecretInit.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace | quote }}
+{{- end }}

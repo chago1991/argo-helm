@@ -1,0 +1,10 @@
+# CI default values — reduces resource requirements for linting
+redisSecretInit:
+  enabled: false
+
+redis-ha:
+  hardAntiAffinity: false
+  haproxy:
+    hardAntiAffinity: false
+  auth: false
+  existingSecret: ""
